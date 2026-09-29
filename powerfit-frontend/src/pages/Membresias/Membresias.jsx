@@ -1,55 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Membresias.css';
 
-// Socios mock (Andrés ya tiene historial, Daniela es nueva)
-const initialSocios = [
-  { id: 1, dni: '74125896', nombres: 'Carlos Mendoza', tieneHistorial: true },
-  { id: 2, dni: '45896321', nombres: 'Andrea Quispe', tieneHistorial: false },
-  { id: 3, dni: '78965412', nombres: 'Renzo Salazar', tieneHistorial: true }
-];
-
-// Catálogo disponible (Regla 2: Solo los activos se pueden seleccionar)
-const productosCatalogo = [
-  { id: 1, nombre: 'Acceso Base Musculación', precio: 90.00, activo: true },
-  { id: 2, nombre: 'Sauna Húmedo y Seco', precio: 35.00, activo: true },
-  { id: 3, nombre: 'Clases Grupales (Spinning/Crossfit)', precio: 45.00, activo: true },
-  { id: 4, nombre: 'Casillero Exclusivo', precio: 25.00, activo: true },
-  { id: 5, nombre: 'Nutrición Deportiva', precio: 30.00, activo: true },
-  { id: 6, nombre: 'Servicio Spa Temporal', precio: 50.00, activo: false } // Desactivado
-];
+const API = 'http://localhost:3000';
 
 export default function Membresias() {
-  const [modoCrear, setModoCrear] = useState(false);
-  const [socioSeleccionado, setSocioSeleccionado] = useState(initialSocios[0]);
-  const [productosSeleccionados, setProductosSeleccionados] = useState([productosCatalogo[0]]);
-  
-  // Histórico de membresías contratadas
-  const [membresias, setMembresias] = useState([
-    {
-      id: 101,
-      socioNombre: 'Carlos Mendoza',
-      dni: '74125896',
-      total: 144.50,
-      pases: 5,
-      items: ['Acceso Base Musculación', 'Sauna Húmedo y Seco', 'Casillero Exclusivo'],
-      estado: 'Activa'
-    }
-  ]);
+  const [socios, setSocios] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [membresias, setMembresias] = useState([]);
+  const [error, setError] = useState('');
 
-  // Regla 2: Filtrar productos disponibles
-  const productosDisponibles = productosCatalogo.filter((p) => p.activo);
+  const [modoCrear, setModoCrear] = useState(false);
+  const [socioId, setSocioId] = useState('');
+  const [idsSeleccionados, setIdsSeleccionados] = useState([]);
+
+  // Cargar socios, productos y membresías desde la API
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/socios`).then((res) => res.json()),
+      fetch(`${API}/productos`).then((res) => res.json()),
+      fetch(`${API}/membresias`).then((res) => res.json()),
+    ])
+      .then(([s, p, m]) => {
+        setSocios(s);
+        setProductos(p);
+        setMembresias([...m].reverse()); // las más recientes primero
+      })
+      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+  }, []);
+
+  // Regla 2: Solo productos activos se pueden seleccionar
+  const productosDisponibles = productos.filter((p) => p.activo);
+
+  // Solo socios activos pueden contratar
+  const sociosActivos = socios.filter((s) => s.activo);
+  const socioSeleccionado =
+    sociosActivos.find((s) => String(s.id) === String(socioId)) ?? sociosActivos[0];
+
+  const productosSeleccionados = productosDisponibles.filter((p) =>
+    idsSeleccionados.includes(String(p.id))
+  );
+
+  // Abrir / cerrar el modo de contratación
+  const handleToggleModo = () => {
+    setError('');
+    if (!modoCrear && productosDisponibles.length > 0) {
+      setIdsSeleccionados([String(productosDisponibles[0].id)]);
+    }
+    setModoCrear(!modoCrear);
+  };
 
   // Toggle checkbox de producto
   const handleToggleProducto = (producto) => {
-    const existe = productosSeleccionados.some((p) => p.id === producto.id);
-    if (existe) {
-      if (productosSeleccionados.length === 1) {
+    const id = String(producto.id);
+    if (idsSeleccionados.includes(id)) {
+      if (idsSeleccionados.length === 1) {
         alert('Una membresía debe incluir al menos un servicio base.');
         return;
       }
-      setProductosSeleccionados(productosSeleccionados.filter((p) => p.id !== producto.id));
+      setIdsSeleccionados(idsSeleccionados.filter((x) => x !== id));
     } else {
-      setProductosSeleccionados([...productosSeleccionados, producto]);
+      setIdsSeleccionados([...idsSeleccionados, id]);
     }
   };
 
@@ -65,34 +75,67 @@ export default function Membresias() {
   // Regla 1: Límite de invitados (1 producto = 2 pases, >=2 productos = 5 pases)
   const pasesBase = cantProductos >= 2 ? 5 : 2;
 
-  // Regla 5: Bono de bienvenida (+1 pase si es primera membresía)
-  const esPrimeraVez = socioSeleccionado ? !socioSeleccionado.tieneHistorial : false;
+  // Regla 5: Bono de bienvenida (+1 pase si es su primera membresía)
+  const tieneHistorial = socioSeleccionado
+    ? membresias.some((m) => String(m.socioId) === String(socioSeleccionado.id))
+    : false;
+  const esPrimeraVez = socioSeleccionado ? !tieneHistorial : false;
   const bonoBienvenida = esPrimeraVez ? 1 : 0;
   const totalPasesInvitado = pasesBase + bonoBienvenida;
 
-  // Confirmar y registrar la membresía (RF14)
-  const handleContratar = () => {
-    const nuevaMembresia = {
-      id: Date.now(),
-      socioNombre: socioSeleccionado.nombres,
-      dni: socioSeleccionado.dni,
-      total: totalPagar,
-      pases: totalPasesInvitado,
-      items: productosSeleccionados.map((p) => p.nombre),
-      estado: 'Activa'
-    };
+  // Nombre del socio y de los servicios a partir de sus ids
+  const getSocio = (id) => socios.find((s) => String(s.id) === String(id));
+  const getNombreProducto = (id) => {
+    const prod = productos.find((p) => String(p.id) === String(id));
+    return prod ? prod.nombre : 'Servicio eliminado';
+  };
 
-    setMembresias([nuevaMembresia, ...membresias]);
-    alert(`¡Membresía generada exitosamente para ${socioSeleccionado.nombres}!`);
-    setModoCrear(false);
+  // Confirmar y registrar la membresía (RF14)
+  const handleContratar = async () => {
+    setError('');
+    if (!socioSeleccionado || productosSeleccionados.length === 0) return;
+
+    try {
+      const res = await fetch(`${API}/membresias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          socioId: String(socioSeleccionado.id),
+          productoIds: productosSeleccionados.map((p) => String(p.id)),
+          total: Number(totalPagar.toFixed(2)),
+          pases: totalPasesInvitado,
+          estado: 'Activa',
+        }),
+      });
+      if (!res.ok) return setError('No se pudo registrar la membresía.');
+
+      const creada = await res.json();
+      setMembresias([creada, ...membresias]);
+      alert(`¡Membresía generada exitosamente para ${socioSeleccionado.nombres}!`);
+      setModoCrear(false);
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
   // RF16: Cancelación de membresía
-  const handleCancelarMembresia = (id) => {
-    if (confirm('¿Estás seguro de cancelar esta membresía?')) {
+  const handleCancelarMembresia = async (id) => {
+    if (!confirm('¿Estás seguro de cancelar esta membresía?')) return;
+    setError('');
+
+    try {
+      const res = await fetch(`${API}/membresias/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'Cancelada' }),
+      });
+      if (!res.ok) return setError('No se pudo cancelar la membresía.');
+
       setMembresias(
         membresias.map((m) => (m.id === id ? { ...m, estado: 'Cancelada' } : m))
       );
+    } catch {
+      setError('No se pudo conectar con el servidor.');
     }
   };
 
@@ -105,13 +148,12 @@ export default function Membresias() {
             Contratación multiproducto, descuentos automáticos y emisión de pases
           </p>
         </div>
-        <button
-          className="btn-primary"
-          onClick={() => setModoCrear(!modoCrear)}
-        >
-          {modoCrear ? 'Ver Listado' : '+ Contratar Membresía (RF14)'}
+        <button className="btn-primary" onClick={handleToggleModo}>
+          {modoCrear ? 'Ver Listado' : '+ Contratar Membresía'}
         </button>
       </div>
+
+      {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
       {modoCrear ? (
         <div className="wizard-layout">
@@ -128,17 +170,17 @@ export default function Membresias() {
                   border: '1px solid #334155',
                   color: '#fff'
                 }}
-                value={socioSeleccionado.id}
-                onChange={(e) => {
-                  const sel = initialSocios.find((s) => s.id === parseInt(e.target.value));
-                  setSocioSeleccionado(sel);
-                }}
+                value={socioSeleccionado?.id ?? ''}
+                onChange={(e) => setSocioId(e.target.value)}
               >
-                {initialSocios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombres} - DNI: {s.dni} {!s.tieneHistorial ? '(Nuevo socio)' : ''}
-                  </option>
-                ))}
+                {sociosActivos.map((s) => {
+                  const nuevo = !membresias.some((m) => String(m.socioId) === String(s.id));
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.nombres} - DNI: {s.dni} {nuevo ? '(Nuevo socio)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -146,7 +188,7 @@ export default function Membresias() {
               <h3>Paso 2: Paquete de Servicios (Regla 2: Solo Activos)</h3>
               <div className="product-selection-list">
                 {productosDisponibles.map((prod) => {
-                  const isChecked = productosSeleccionados.some((p) => p.id === prod.id);
+                  const isChecked = idsSeleccionados.includes(String(prod.id));
                   return (
                     <div
                       key={prod.id}
@@ -175,7 +217,7 @@ export default function Membresias() {
 
             <div className="summary-row">
               <span style={{ color: '#94a3b8' }}>Socio Titular:</span>
-              <strong>{socioSeleccionado.nombres}</strong>
+              <strong>{socioSeleccionado ? socioSeleccionado.nombres : '—'}</strong>
             </div>
 
             <div className="summary-row">
@@ -224,6 +266,7 @@ export default function Membresias() {
               className="btn-primary"
               style={{ width: '100%', marginTop: '1.5rem', padding: '0.85rem' }}
               onClick={handleContratar}
+              disabled={!socioSeleccionado || cantProductos === 0}
             >
               Confirmar y Registrar Membresía
             </button>
@@ -245,36 +288,50 @@ export default function Membresias() {
               </tr>
             </thead>
             <tbody>
-              {membresias.map((m) => (
-                <tr key={m.id}>
-                  <td><strong>#{m.id}</strong></td>
-                  <td>{m.socioNombre} <br/><small style={{ color: '#64748b' }}>DNI: {m.dni}</small></td>
-                  <td>
-                    <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
-                      {m.items.map((it, idx) => (
-                        <li key={idx}>{it}</li>
-                      ))}
-                    </ul>
-                  </td>
-                  <td><span className="badge active">{m.pases} pases</span></td>
-                  <td><strong>S/ {m.total.toFixed(2)}</strong></td>
-                  <td>
-                    <span className={`badge ${m.estado === 'Activa' ? 'active' : 'inactive'}`}>
-                      {m.estado}
-                    </span>
-                  </td>
-                  <td>
-                    {m.estado === 'Activa' && (
-                      <button
-                        className="btn-toggle"
-                        onClick={() => handleCancelarMembresia(m.id)}
-                      >
-                        Cancelar (RF16)
-                      </button>
-                    )}
+              {membresias.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', color: '#64748b' }}>
+                    Aún no hay membresías registradas.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                membresias.map((m) => {
+                  const socio = getSocio(m.socioId);
+                  return (
+                    <tr key={m.id}>
+                      <td><strong>#{m.id}</strong></td>
+                      <td>
+                        {socio ? socio.nombres : 'Socio no encontrado'} <br/>
+                        <small style={{ color: '#64748b' }}>DNI: {socio ? socio.dni : '—'}</small>
+                      </td>
+                      <td>
+                        <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+                          {m.productoIds.map((pid) => (
+                            <li key={pid}>{getNombreProducto(pid)}</li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td><span className="badge active">{m.pases} pases</span></td>
+                      <td><strong>S/ {Number(m.total).toFixed(2)}</strong></td>
+                      <td>
+                        <span className={`badge ${m.estado === 'Activa' ? 'active' : 'inactive'}`}>
+                          {m.estado}
+                        </span>
+                      </td>
+                      <td>
+                        {m.estado === 'Activa' && (
+                          <button
+                            className="btn-toggle"
+                            onClick={() => handleCancelarMembresia(m.id)}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

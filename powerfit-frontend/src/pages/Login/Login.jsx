@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
@@ -7,16 +7,29 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { login, usuario } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (e) => {
+  // Vuelve a la página que intentaba abrir; si no hay, al panel
+  const destino = location.state?.from?.pathname || '/admin';
+
+  // Si ya hay sesión, no tiene sentido mostrar el login
+  if (usuario) {
+    return <Navigate to={destino} replace />;
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const res = login(username, password);
+    const res = await login(username, password);
+    setLoading(false);
+
     if (res.success) {
-      navigate('/admin');
+      navigate(destino, { replace: true });
     } else {
       setError(res.message);
     }
@@ -41,6 +54,7 @@ export default function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Ingresa tu usuario"
+              disabled={loading}
             />
           </div>
 
@@ -52,11 +66,17 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-            Iniciar Sesión
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+            style={{ width: '100%', marginTop: '1rem' }}
+          >
+            {loading ? 'Ingresando...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>

@@ -4,6 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import HomeNav from '../../componentes/HomeNav';
 import './Home.css';
 
+const API = 'http://localhost:3000';
+
+// El carrusel es decorativo, se queda fijo
 const slidesData = [
   {
     tag: 'Sede Central Lima',
@@ -21,64 +24,41 @@ const slidesData = [
   }
 ];
 
-const sedesData = [
-  {
-    id: 1,
-    nombre: 'Sede Miraflores (Principal)',
-    direccion: 'Av. José Larco 1045, Miraflores',
-    horario: 'Lun - Sáb: 5:30 am - 11:00 pm | Dom: 8:00 am - 4:00 pm',
-    aforo: 'Aforo Actual: 45%',
-    servicios: ['Musculación', 'Sauna Húmedo & Seco', 'Spinning'],
-    imagen: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 2,
-    nombre: 'Sede San Isidro Financial',
-    direccion: 'Calle Las Begonias 441, San Isidro',
-    horario: 'Lun - Sáb: 6:00 am - 10:30 pm | Dom: 8:00 am - 2:00 pm',
-    aforo: 'Aforo Actual: 60%',
-    servicios: ['Área Funcional', 'Crossfit', 'Casilleros VIP'],
-    imagen: 'https://images.unsplash.com/photo-1593079831268-3381b0db4a77?auto=format&fit=crop&w=600&q=80'
-  }
-];
-
-const productosTienda = [
-  { id: 1, nombre: 'Shaker Pro PowerFit 700ml', categoria: 'Accesorios', precio: 28.00, stock: 'Disponible', imagen: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=400&q=80' },
-  { id: 2, nombre: 'Creatina Creapure 300g', categoria: 'Suplementos', precio: 110.00, stock: 'Disponible', imagen: 'https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=400&q=80' },
-  { id: 3, nombre: 'Correas Straps de Levantamiento', categoria: 'Accesorios', precio: 35.00, stock: 'Disponible', imagen: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=400&q=80' },
-  { id: 4, nombre: 'Toalla Microfibra Gym Antimicrobiana', categoria: 'Textil', precio: 22.00, stock: 'Disponible', imagen: 'https://images.unsplash.com/photo-1606902965551-dce093cda6e7?auto=format&fit=crop&w=400&q=80' }
-];
-
-const serviciosCatalogo = [
-  { id: 1, nombre: 'Acceso Total Musculación', precio: 90.00 },
-  { id: 2, nombre: 'Sauna Húmedo y Seco', precio: 35.00 },
-  { id: 3, nombre: 'Clases de Spinning & Crossfit', precio: 45.00 },
-  { id: 4, nombre: 'Casillero Privado Fijo', precio: 25.00 },
-  { id: 5, nombre: 'Evaluación Nutricional', precio: 30.00 }
-];
+const money = (n) => Number(n || 0).toFixed(2);
 
 export default function Home() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const [activeSlide, setActiveSlide] = useState(0);
-  
+
+  // Datos desde la API
+  const [sedes, setSedes] = useState([]);
+  const [productosTienda, setProductosTienda] = useState([]);
+  const [serviciosCatalogo, setServiciosCatalogo] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [errorData, setErrorData] = useState('');
+
   // Modales
   const [modalLoginOpen, setModalLoginOpen] = useState(false);
   const [modalRegistroOpen, setModalRegistroOpen] = useState(false);
   const [modalPagoOpen, setModalPagoOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-// Formularios
-  const [loginForm, setLoginForm] = useState({ username: 'cliente', password: '123' });
+
+  // Formularios (ya no hay credenciales precargadas)
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [registroForm, setRegistroForm] = useState({ nombres: '', dni: '', telefono: '', username: '', password: '' });
   const [loginError, setLoginError] = useState(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [registroError, setRegistroError] = useState('');
+  const [registroLoading, setRegistroLoading] = useState(false);
 
   // Carrito de compras
   const [carrito, setCarrito] = useState([]);
   const [metodoPago, setMetodoPago] = useState('yape');
 
   // Simulador de Paquetes
-  const [serviciosElegidos, setServiciosElegidos] = useState([serviciosCatalogo[0], serviciosCatalogo[1]]);
+  const [serviciosElegidos, setServiciosElegidos] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -87,16 +67,43 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Carga de sedes, tienda y servicios
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        const [rs, rt, rp] = await Promise.all([
+          fetch(`${API}/sedes`),
+          fetch(`${API}/tienda`),
+          fetch(`${API}/productos`),
+        ]);
+        if (!rs.ok || !rt.ok || !rp.ok) throw new Error();
+
+        const [s, t, p] = await Promise.all([rs.json(), rt.json(), rp.json()]);
+        const serviciosActivos = p.filter((x) => x.activo);
+
+        setSedes(s);
+        setProductosTienda(t);
+        setServiciosCatalogo(serviciosActivos);
+        setServiciosElegidos(serviciosActivos.slice(0, 2)); // selección inicial del simulador
+      } catch {
+        setErrorData('No se pudo cargar la información. ¿Está encendido el servidor?');
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    cargar();
+  }, []);
+
   const handleAgregarAlCarrito = (prod) => {
     setCarrito([...carrito, { ...prod, cartId: Date.now() }]);
     setCartDrawerOpen(true);
   };
 
   const handleEliminarDelCarrito = (cartId) => {
-    setCarrito(carrito.filter(item => item.cartId !== cartId));
+    setCarrito(carrito.filter((item) => item.cartId !== cartId));
   };
 
-  const totalCarrito = carrito.reduce((sum, item) => sum + item.precio, 0);
+  const totalCarrito = carrito.reduce((sum, item) => sum + Number(item.precio), 0);
 
   const toggleServicio = (item) => {
     const yaExiste = serviciosElegidos.some((s) => s.id === item.id);
@@ -109,43 +116,109 @@ export default function Home() {
   };
 
   const totalItems = serviciosElegidos.length;
-  const subtotal = serviciosElegidos.reduce((acc, s) => acc + s.precio, 0);
+  const subtotal = serviciosElegidos.reduce((acc, s) => acc + Number(s.precio), 0);
   const tieneDescuento = totalItems >= 4;
   const descuento = tieneDescuento ? subtotal * 0.15 : 0;
   const totalCalculado = subtotal - descuento;
   const pases = totalItems >= 2 ? 5 : 2;
-const handleLoginSubmit = (e) => {
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError(null);
+    setLoginLoading(true);
 
-    const res = login(loginForm.username, loginForm.password);
+    const res = await login(loginForm.username, loginForm.password);
+    setLoginLoading(false);
 
-    if (res && res.success) {
+    if (res.success) {
       setModalLoginOpen(false);
+      setLoginForm({ username: '', password: '' });
 
-      // Si es cliente, se queda en '/' (Home)
-      if (res.rol === 'cliente') {
-        navigate('/');
-      } 
-      // Si es admin o staff, recién va a '/admin'
-      else if (res.rol === 'admin' || res.rol === 'staff') {
+      // Cliente se queda en el Home; admin o staff van al panel
+      if (res.rol === 'admin' || res.rol === 'staff') {
         navigate('/admin');
       }
     } else {
-      setLoginError(res?.message || 'Usuario o contraseña incorrectos');
+      setLoginError(res.message);
     }
   };
 
-  const handleRegistroSubmit = (e) => {
+  const handleRegistroSubmit = async (e) => {
     e.preventDefault();
-    alert(`¡Cuenta creada con éxito para ${registroForm.nombres}! Ya puedes iniciar sesión.`);
-    setModalRegistroOpen(false);
-    setModalLoginOpen(true);
+    setRegistroError('');
+    setRegistroLoading(true);
+
+    try {
+      const dni = registroForm.dni.trim();
+      const username = registroForm.username.trim().toLowerCase();
+
+      if (!/^\d{8}$/.test(dni)) {
+        setRegistroError('El DNI debe tener exactamente 8 dígitos.');
+        return;
+      }
+
+      // Validar duplicados antes de crear nada
+      const [rd, ru] = await Promise.all([
+        fetch(`${API}/socios?dni=${dni}`),
+        fetch(`${API}/usuarios?username=${encodeURIComponent(username)}`),
+      ]);
+      if (!rd.ok || !ru.ok) throw new Error();
+
+      if ((await rd.json()).length > 0) {
+        setRegistroError('Ya existe un socio registrado con ese DNI.');
+        return;
+      }
+      if ((await ru.json()).length > 0) {
+        setRegistroError('Ese usuario ya está en uso. Elige otro.');
+        return;
+      }
+
+      // 1) Crear el socio
+      const rs = await fetch(`${API}/socios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombres: registroForm.nombres.trim(),
+          dni,
+          telefono: registroForm.telefono.trim(),
+          activo: true,
+        }),
+      });
+      if (!rs.ok) throw new Error();
+      const socio = await rs.json();
+
+      // 2) Crear su usuario de acceso, enlazado al socio
+      const rUser = await fetch(`${API}/usuarios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password: registroForm.password.trim(),
+          nombre: registroForm.nombres.trim(),
+          rol: 'cliente',
+          socioId: socio.id,
+        }),
+      });
+      if (!rUser.ok) {
+        // Si falla el usuario, deshacer el socio para no dejar datos huérfanos
+        await fetch(`${API}/socios/${socio.id}`, { method: 'DELETE' });
+        throw new Error();
+      }
+
+      setRegistroForm({ nombres: '', dni: '', telefono: '', username: '', password: '' });
+      setModalRegistroOpen(false);
+      setLoginForm({ username, password: '' });
+      setModalLoginOpen(true);
+    } catch {
+      setRegistroError('No se pudo completar el registro. Inténtalo de nuevo.');
+    } finally {
+      setRegistroLoading(false);
+    }
   };
 
   const handleProcesarPago = (e) => {
     e.preventDefault();
-    alert(`¡Pago de S/ ${totalCarrito.toFixed(2)} confirmado exitosamente mediante ${metodoPago.toUpperCase()}! Tu código de retiro en sede es #PF-${Math.floor(1000 + Math.random() * 9000)}.`);
+    alert(`¡Pago de S/ ${money(totalCarrito)} confirmado exitosamente mediante ${metodoPago.toUpperCase()}! Tu código de retiro en sede es #PF-${Math.floor(1000 + Math.random() * 9000)}.`);
     setCarrito([]);
     setModalPagoOpen(false);
     setCartDrawerOpen(false);
@@ -154,7 +227,7 @@ const handleLoginSubmit = (e) => {
   return (
     <div className="home-page">
       {/* NAVBAR */}
-      <HomeNav 
+      <HomeNav
         onOpenLogin={() => setModalLoginOpen(true)}
         onOpenRegistro={() => setModalRegistroOpen(true)}
         cartCount={carrito.length}
@@ -185,6 +258,10 @@ const handleLoginSubmit = (e) => {
         <button className="carousel-btn next" onClick={() => setActiveSlide((prev) => (prev + 1) % slidesData.length)}>›</button>
       </section>
 
+      {errorData && (
+        <p style={{ color: '#f87171', textAlign: 'center', padding: '1rem' }}>{errorData}</p>
+      )}
+
       {/* SEDES */}
       <section id="sedes" className="section-wrapper">
         <div className="section-head">
@@ -193,7 +270,8 @@ const handleLoginSubmit = (e) => {
         </div>
 
         <div className="sedes-grid">
-          {sedesData.map((sede) => (
+          {loadingData && <p style={{ color: '#64748b' }}>Cargando sedes...</p>}
+          {sedes.map((sede) => (
             <div key={sede.id} className="sede-card">
               <div className="sede-img-wrapper">
                 <img src={sede.imagen} alt={sede.nombre} />
@@ -224,6 +302,7 @@ const handleLoginSubmit = (e) => {
         <div className="custom-bundle-box">
           <div className="bundle-options">
             <h4 style={{ margin: '0 0 0.5rem', color: '#cbd5e1' }}>Selecciona tus ítems:</h4>
+            {loadingData && <p style={{ color: '#64748b' }}>Cargando servicios...</p>}
             {serviciosCatalogo.map((item) => {
               const checked = serviciosElegidos.some((s) => s.id === item.id);
               return (
@@ -236,7 +315,7 @@ const handleLoginSubmit = (e) => {
                     <input type="checkbox" checked={checked} readOnly />
                     <span><strong>{item.nombre}</strong></span>
                   </div>
-                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>S/ {item.precio.toFixed(2)}</span>
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>S/ {money(item.precio)}</span>
                 </div>
               );
             })}
@@ -251,13 +330,13 @@ const handleLoginSubmit = (e) => {
               </div>
               <div className="summary-line">
                 <span style={{ color: '#94a3b8' }}>Subtotal:</span>
-                <span>S/ {subtotal.toFixed(2)}</span>
+                <span>S/ {money(subtotal)}</span>
               </div>
 
               {tieneDescuento ? (
                 <div className="summary-line green">
                   <span>Descuento Paquete (15% - Regla 4):</span>
-                  <span>- S/ {descuento.toFixed(2)}</span>
+                  <span>- S/ {money(descuento)}</span>
                 </div>
               ) : (
                 <div style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.5rem 0' }}>
@@ -267,7 +346,7 @@ const handleLoginSubmit = (e) => {
 
               <div className="summary-total-big">
                 <span>Total a Pagar:</span>
-                <span>S/ {totalCalculado.toFixed(2)}</span>
+                <span>S/ {money(totalCalculado)}</span>
               </div>
 
               <div style={{ marginTop: '1.2rem', padding: '0.8rem', background: '#1e293b', borderRadius: '8px', fontSize: '0.85rem' }}>
@@ -294,6 +373,7 @@ const handleLoginSubmit = (e) => {
         </div>
 
         <div className="shop-grid">
+          {loadingData && <p style={{ color: '#64748b' }}>Cargando productos...</p>}
           {productosTienda.map((p) => (
             <div key={p.id} className="shop-card">
               <img src={p.imagen} alt={p.nombre} />
@@ -305,7 +385,7 @@ const handleLoginSubmit = (e) => {
                 <span className="stock">✓ {p.stock}</span>
               </div>
               <div className="shop-price-row">
-                <span className="shop-price">S/ {p.precio.toFixed(2)}</span>
+                <span className="shop-price">S/ {money(p.precio)}</span>
                 <button
                   className="btn-nav-registro"
                   style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
@@ -319,7 +399,7 @@ const handleLoginSubmit = (e) => {
         </div>
       </section>
 
-      {/* CARRITO LATERAL CON FIX DE BOTÓN ACCESIBLE */}
+      {/* CARRITO LATERAL */}
       {cartDrawerOpen && (
         <div className="drawer-overlay" onClick={() => setCartDrawerOpen(false)}>
           <div className="cart-drawer" onClick={(e) => e.stopPropagation()}>
@@ -340,10 +420,10 @@ const handleLoginSubmit = (e) => {
                   <div key={item.cartId} className="cart-item-row">
                     <div>
                       <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{item.nombre}</strong>
-                      <div style={{ color: '#38bdf8', fontSize: '0.85rem' }}>S/ {item.precio.toFixed(2)}</div>
+                      <div style={{ color: '#38bdf8', fontSize: '0.85rem' }}>S/ {money(item.precio)}</div>
                     </div>
-                    <button 
-                      className="btn-remove-item" 
+                    <button
+                      className="btn-remove-item"
                       title="Eliminar artículo"
                       onClick={() => handleEliminarDelCarrito(item.cartId)}
                     >
@@ -358,7 +438,7 @@ const handleLoginSubmit = (e) => {
               <div className="cart-footer-fixed">
                 <div className="summary-line" style={{ fontSize: '1.15rem', fontWeight: 'bold' }}>
                   <span>Total a Pagar:</span>
-                  <span style={{ color: '#f59e0b' }}>S/ {totalCarrito.toFixed(2)}</span>
+                  <span style={{ color: '#f59e0b' }}>S/ {money(totalCarrito)}</span>
                 </div>
                 <button
                   className="btn-nav-registro"
@@ -392,13 +472,14 @@ const handleLoginSubmit = (e) => {
 
             <form onSubmit={handleLoginSubmit} className="auth-form">
               <div className="form-group">
-                <label>Usuario o DNI</label>
+                <label>Usuario</label>
                 <input
                   type="text"
                   required
                   placeholder="Tu usuario"
                   value={loginForm.username}
                   onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  disabled={loginLoading}
                 />
               </div>
 
@@ -410,11 +491,17 @@ const handleLoginSubmit = (e) => {
                   placeholder="••••••••"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  disabled={loginLoading}
                 />
               </div>
 
-              <button type="submit" className="btn-nav-registro" style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}>
-                Acceder al Portal
+              <button
+                type="submit"
+                className="btn-nav-registro"
+                disabled={loginLoading}
+                style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}
+              >
+                {loginLoading ? 'Ingresando...' : 'Acceder al Portal'}
               </button>
             </form>
           </div>
@@ -429,6 +516,12 @@ const handleLoginSubmit = (e) => {
             <h3>Crear Cuenta Nueva</h3>
             <p className="modal-desc">Únete a PowerFit GYM y obtén tu pase de bienvenida.</p>
 
+            {registroError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '0.6rem', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem', textAlign: 'center' }}>
+                {registroError}
+              </div>
+            )}
+
             <form onSubmit={handleRegistroSubmit} className="auth-form">
               <div className="form-group">
                 <label>Nombres Completos</label>
@@ -438,6 +531,7 @@ const handleLoginSubmit = (e) => {
                   placeholder="Ej. Juan Pérez"
                   value={registroForm.nombres}
                   onChange={(e) => setRegistroForm({ ...registroForm, nombres: e.target.value })}
+                  disabled={registroLoading}
                 />
               </div>
 
@@ -450,6 +544,7 @@ const handleLoginSubmit = (e) => {
                   placeholder="8 dígitos"
                   value={registroForm.dni}
                   onChange={(e) => setRegistroForm({ ...registroForm, dni: e.target.value })}
+                  disabled={registroLoading}
                 />
               </div>
 
@@ -460,6 +555,7 @@ const handleLoginSubmit = (e) => {
                   placeholder="999 999 999"
                   value={registroForm.telefono}
                   onChange={(e) => setRegistroForm({ ...registroForm, telefono: e.target.value })}
+                  disabled={registroLoading}
                 />
               </div>
 
@@ -471,6 +567,7 @@ const handleLoginSubmit = (e) => {
                   placeholder="Usuario para tu cuenta"
                   value={registroForm.username}
                   onChange={(e) => setRegistroForm({ ...registroForm, username: e.target.value })}
+                  disabled={registroLoading}
                 />
               </div>
 
@@ -482,11 +579,17 @@ const handleLoginSubmit = (e) => {
                   placeholder="••••••••"
                   value={registroForm.password}
                   onChange={(e) => setRegistroForm({ ...registroForm, password: e.target.value })}
+                  disabled={registroLoading}
                 />
               </div>
 
-              <button type="submit" className="btn-nav-registro" style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}>
-                Registrarme
+              <button
+                type="submit"
+                className="btn-nav-registro"
+                disabled={registroLoading}
+                style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}
+              >
+                {registroLoading ? 'Registrando...' : 'Registrarme'}
               </button>
             </form>
           </div>
@@ -504,31 +607,31 @@ const handleLoginSubmit = (e) => {
             <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
               <div className="summary-line">
                 <span>Total a Liquidar:</span>
-                <strong style={{ color: '#f59e0b', fontSize: '1.2rem' }}>S/ {totalCarrito.toFixed(2)}</strong>
+                <strong style={{ color: '#f59e0b', fontSize: '1.2rem' }}>S/ {money(totalCarrito)}</strong>
               </div>
             </div>
 
             <label style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Selecciona tu método:</label>
             <div className="payment-methods-grid">
-              <div 
+              <div
                 className={`payment-method-box ${metodoPago === 'yape' ? 'active' : ''}`}
                 onClick={() => setMetodoPago('yape')}
               >
                 🟣 Yape / Plin
               </div>
-              <div 
+              <div
                 className={`payment-method-box ${metodoPago === 'tarjeta' ? 'active' : ''}`}
                 onClick={() => setMetodoPago('tarjeta')}
               >
                 💳 Tarjeta Débito/Crédito
               </div>
-              <div 
+              <div
                 className={`payment-method-box ${metodoPago === 'transferencia' ? 'active' : ''}`}
                 onClick={() => setMetodoPago('transferencia')}
               >
                 🏦 Transferencia BCP/BBVA
               </div>
-              <div 
+              <div
                 className={`payment-method-box ${metodoPago === 'efectivo' ? 'active' : ''}`}
                 onClick={() => setMetodoPago('efectivo')}
               >
@@ -564,7 +667,7 @@ const handleLoginSubmit = (e) => {
               )}
 
               <button type="submit" className="btn-nav-registro" style={{ width: '100%', padding: '0.85rem', marginTop: '0.8rem' }}>
-                Confirmar y Pagar S/ {totalCarrito.toFixed(2)}
+                Confirmar y Pagar S/ {money(totalCarrito)}
               </button>
             </form>
           </div>

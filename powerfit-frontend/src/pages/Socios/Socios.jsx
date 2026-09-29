@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Socios.css';
 
-const initialSocios = [
-  { id: 1, dni: '74125896', nombres: 'Carlos Mendoza', telefono: '987654321', email: 'carlos@test.com', activo: true },
-  { id: 2, dni: '45896321', nombres: 'Andrea Quispe', telefono: '912345678', email: 'andrea@test.com', activo: true },
-  { id: 3, dni: '78965412', nombres: 'Renzo Salazar', telefono: '945612378', email: 'renzo@test.com', activo: false }
-];
+const API = 'http://localhost:3000';
 
 export default function Socios() {
-  const [socios, setSocios] = useState(initialSocios);
+  const [socios, setSocios] = useState([]);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({ dni: '', nombres: '', telefono: '', email: '' });
+  const [error, setError] = useState('');
+
+  // Cargar socios desde la API al abrir la pantalla
+  useEffect(() => {
+    fetch(`${API}/socios`)
+      .then((res) => res.json())
+      .then(setSocios)
+      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+  }, []);
 
   // RF02: Búsqueda dinámica
   const sociosFiltrados = socios.filter((s) =>
@@ -19,23 +24,46 @@ export default function Socios() {
   );
 
   // RF04: Desactivación / Reactivación lógica
-  const toggleEstado = (id) => {
-    setSocios(socios.map(s => s.id === id ? { ...s, activo: !s.activo } : s));
+  const toggleEstado = async (socio) => {
+    setError('');
+    try {
+      const res = await fetch(`${API}/socios/${socio.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: !socio.activo }),
+      });
+      if (!res.ok) return setError('No se pudo actualizar el socio.');
+      setSocios(socios.map((s) => (s.id === socio.id ? { ...s, activo: !s.activo } : s)));
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
   // RF01: Registro de socio
-  const handleRegistrar = (e) => {
+  const handleRegistrar = async (e) => {
     e.preventDefault();
+    setError('');
     if (!formData.dni || !formData.nombres) return;
 
-    const nuevo = {
-      id: Date.now(),
-      ...formData,
-      activo: true
-    };
-    setSocios([...socios, nuevo]);
-    setFormData({ dni: '', nombres: '', telefono: '', email: '' });
-    setModalOpen(false);
+    if (socios.some((s) => s.dni === formData.dni)) {
+      return setError('Ya existe un socio con ese DNI.');
+    }
+
+    try {
+      const res = await fetch(`${API}/socios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, activo: true }),
+      });
+      if (!res.ok) return setError('No se pudo registrar el socio.');
+
+      const creado = await res.json();
+      setSocios([...socios, creado]);
+      setFormData({ dni: '', nombres: '', telefono: '', email: '' });
+      setModalOpen(false);
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
   return (
@@ -46,7 +74,7 @@ export default function Socios() {
           <p style={{ color: '#94a3b8', margin: 0 }}>Registro y administración del padrón de clientes</p>
         </div>
         <button className="btn-primary" onClick={() => setModalOpen(true)}>
-          + Nuevo Socio (RF01)
+          + Nuevo Socio
         </button>
       </div>
 
@@ -57,6 +85,7 @@ export default function Socios() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+      {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
       <div className="table-wrapper">
         <table className="custom-table">
@@ -90,7 +119,7 @@ export default function Socios() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn-toggle" onClick={() => toggleEstado(s.id)}>
+                    <button className="btn-toggle" onClick={() => toggleEstado(s)}>
                       {s.activo ? 'Desactivar' : 'Activar'}
                     </button>
                   </td>

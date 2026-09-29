@@ -1,76 +1,113 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Catalogo.css';
 
-const initialCategorias = [
-  { id: 1, nombre: 'Acceso Base' },
-  { id: 2, nombre: 'Amenities / Zona Húmeda' },
-  { id: 3, nombre: 'Entrenamiento & Clases' },
-  { id: 4, nombre: 'Servicios Adicionales' }
-];
-
-const initialProductos = [
-  { id: 1, nombre: 'Pase Libre Musculación', categoriaId: 1, precio: 90.00, activo: true },
-  { id: 2, nombre: 'Acceso a Sauna Húmedo y Seco', categoriaId: 2, precio: 35.00, activo: true },
-  { id: 3, nombre: 'Clases de Spinning & Crossfit', categoriaId: 3, precio: 45.00, activo: true },
-  { id: 4, nombre: 'Casillero Personal Exclusivo', categoriaId: 4, precio: 25.00, activo: true },
-  { id: 5, nombre: 'Evaluación Nutricional Mensual', categoriaId: 4, precio: 30.00, activo: false }
-];
+const API = 'http://localhost:3000';
 
 export default function Catalogo() {
   const [activeTab, setActiveTab] = useState('productos');
-  const [categorias, setCategorias] = useState(initialCategorias);
-  const [productos, setProductos] = useState(initialProductos);
+  const [categorias, setCategorias] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [error, setError] = useState('');
 
   // Estados de modales
   const [modalProductoOpen, setModalProductoOpen] = useState(false);
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
 
   // Form states
-  const [formProd, setFormProd] = useState({ nombre: '', categoriaId: 1, precio: '' });
+  const [formProd, setFormProd] = useState({ nombre: '', categoriaId: '', precio: '' });
   const [formCat, setFormCat] = useState({ nombre: '' });
 
+  // Cargar categorías y productos desde la API
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/categorias`).then((res) => res.json()),
+      fetch(`${API}/productos`).then((res) => res.json()),
+    ])
+      .then(([cats, prods]) => {
+        setCategorias(cats);
+        setProductos(prods);
+      })
+      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+  }, []);
+
+  // Abrir el modal de producto con la primera categoría seleccionada
+  const abrirModalProducto = () => {
+    setError('');
+    setFormProd({ nombre: '', categoriaId: categorias[0]?.id ?? '', precio: '' });
+    setModalProductoOpen(true);
+  };
+
   // RF13: Desactivar / Activar producto (Regla 2)
-  const toggleEstadoProducto = (id) => {
-    setProductos(
-      productos.map((p) => (p.id === id ? { ...p, activo: !p.activo } : p))
-    );
+  const toggleEstadoProducto = async (prod) => {
+    setError('');
+    try {
+      const res = await fetch(`${API}/productos/${prod.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: !prod.activo }),
+      });
+      if (!res.ok) return setError('No se pudo actualizar el producto.');
+      setProductos(
+        productos.map((p) => (p.id === prod.id ? { ...p, activo: !p.activo } : p))
+      );
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
   // RF10: Registrar producto
-  const handleRegistrarProducto = (e) => {
+  const handleRegistrarProducto = async (e) => {
     e.preventDefault();
-    if (!formProd.nombre || !formProd.precio) return;
+    setError('');
+    if (!formProd.nombre || !formProd.precio || !formProd.categoriaId) return;
 
-    const nuevo = {
-      id: Date.now(),
-      nombre: formProd.nombre,
-      categoriaId: parseInt(formProd.categoriaId),
-      precio: parseFloat(formProd.precio),
-      activo: true
-    };
+    try {
+      const res = await fetch(`${API}/productos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: formProd.nombre,
+          categoriaId: String(formProd.categoriaId),
+          precio: parseFloat(formProd.precio),
+          activo: true,
+        }),
+      });
+      if (!res.ok) return setError('No se pudo registrar el producto.');
 
-    setProductos([...productos, nuevo]);
-    setFormProd({ nombre: '', categoriaId: 1, precio: '' });
-    setModalProductoOpen(false);
+      const creado = await res.json();
+      setProductos([...productos, creado]);
+      setModalProductoOpen(false);
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
   // RF07: Registrar categoría
-  const handleRegistrarCategoria = (e) => {
+  const handleRegistrarCategoria = async (e) => {
     e.preventDefault();
+    setError('');
     if (!formCat.nombre) return;
 
-    const nueva = {
-      id: Date.now(),
-      nombre: formCat.nombre
-    };
+    try {
+      const res = await fetch(`${API}/categorias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: formCat.nombre }),
+      });
+      if (!res.ok) return setError('No se pudo registrar la categoría.');
 
-    setCategorias([...categorias, nueva]);
-    setFormCat({ nombre: '' });
-    setModalCategoriaOpen(false);
+      const creada = await res.json();
+      setCategorias([...categorias, creada]);
+      setFormCat({ nombre: '' });
+      setModalCategoriaOpen(false);
+    } catch {
+      setError('No se pudo conectar con el servidor.');
+    }
   };
 
+  // Los ids que devuelve json-server son texto, se comparan como texto
   const getCategoriaNombre = (catId) => {
-    const cat = categorias.find((c) => c.id === catId);
+    const cat = categorias.find((c) => String(c.id) === String(catId));
     return cat ? cat.nombre : 'Sin categoría';
   };
 
@@ -85,28 +122,36 @@ export default function Catalogo() {
         </div>
 
         {activeTab === 'productos' ? (
-          <button className="btn-primary" onClick={() => setModalProductoOpen(true)}>
-            + Nuevo Producto (RF10)
+          <button className="btn-primary" onClick={abrirModalProducto}>
+            + Nuevo Producto
           </button>
         ) : (
-          <button className="btn-primary" onClick={() => setModalCategoriaOpen(true)}>
-            + Nueva Categoría (RF07)
+          <button
+            className="btn-primary"
+            onClick={() => {
+              setError('');
+              setModalCategoriaOpen(true);
+            }}
+          >
+            + Nueva Categoría
           </button>
         )}
       </div>
+
+      {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
       <div className="catalogo-tabs">
         <button
           className={`tab-btn ${activeTab === 'productos' ? 'active' : ''}`}
           onClick={() => setActiveTab('productos')}
         >
-          Productos / Servicios (RF11)
+          Productos / Servicios
         </button>
         <button
           className={`tab-btn ${activeTab === 'categorias' ? 'active' : ''}`}
           onClick={() => setActiveTab('categorias')}
         >
-          Categorías (RF08)
+          Categorías
         </button>
       </div>
 
@@ -133,9 +178,9 @@ export default function Catalogo() {
               <div className="product-actions">
                 <button
                   className="btn-toggle"
-                  onClick={() => toggleEstadoProducto(prod.id)}
+                  onClick={() => toggleEstadoProducto(prod)}
                 >
-                  {prod.activo ? 'Desactivar (RF13)' : 'Habilitar'}
+                  {prod.activo ? 'Desactivar' : 'Habilitar'}
                 </button>
               </div>
             </div>
@@ -157,7 +202,7 @@ export default function Catalogo() {
                   <td>#{cat.id}</td>
                   <td><strong>{cat.nombre}</strong></td>
                   <td>
-                    {productos.filter((p) => p.categoriaId === cat.id).length} ítems
+                    {productos.filter((p) => String(p.categoriaId) === String(cat.id)).length} ítems
                   </td>
                 </tr>
               ))}

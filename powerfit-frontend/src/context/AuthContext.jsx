@@ -2,6 +2,8 @@ import { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext();
 
+const API = 'http://localhost:3000';
+
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(() => {
     try {
@@ -12,35 +14,28 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const login = (username, password) => {
-    const u = username ? username.trim().toLowerCase() : '';
-    const p = password ? password.trim() : '';
+  const login = async (username, password) => {
+    try {
+      const params = new URLSearchParams({
+        username: username.trim().toLowerCase(),
+        password: password.trim(),
+      });
+      const res = await fetch(`${API}/usuarios?${params}`);
+      if (!res.ok) throw new Error('Error del servidor');
 
-    // 1. CLIENTE -> ROL CLIENTE
-    if (u === 'cliente' && p === '123') {
-      const data = { username: 'cliente', nombre: 'Joel Alexander', rol: 'cliente' };
+      const lista = await res.json();
+      if (lista.length === 0) {
+        return { success: false, message: 'Usuario o contraseña incorrectos' };
+      }
+
+      // La contraseña nunca se guarda en el estado ni en localStorage
+      const { password: _, ...data } = lista[0];
       setUsuario(data);
       localStorage.setItem('powerfit_user', JSON.stringify(data));
-      return { success: true, rol: 'cliente', usuario: data };
+      return { success: true, rol: data.rol, usuario: data };
+    } catch {
+      return { success: false, message: 'No se pudo conectar con el servidor' };
     }
-
-    // 2. ADMIN -> ROL ADMIN
-    if (u === 'admin' && p === 'admin123') {
-      const data = { username: 'admin', nombre: 'Administrador', rol: 'admin' };
-      setUsuario(data);
-      localStorage.setItem('powerfit_user', JSON.stringify(data));
-      return { success: true, rol: 'admin', usuario: data };
-    }
-
-    // 3. STAFF -> ROL STAFF
-    if (u === 'staff' && p === 'staff123') {
-      const data = { username: 'staff', nombre: 'Recepción Central', rol: 'staff' };
-      setUsuario(data);
-      localStorage.setItem('powerfit_user', JSON.stringify(data));
-      return { success: true, rol: 'staff', usuario: data };
-    }
-
-    return { success: false, message: 'Usuario o contraseña incorrectos' };
   };
 
   const logout = () => {

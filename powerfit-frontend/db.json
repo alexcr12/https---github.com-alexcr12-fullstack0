@@ -1,0 +1,205 @@
+{
+  "usuarios": [
+    {
+      "id": "1",
+      "username": "admin",
+      "password": "admin123",
+      "nombre": "Administrador",
+      "rol": "admin"
+    },
+    {
+      "id": "2",
+      "username": "staff",
+      "password": "staff123",
+      "nombre": "Recepción Central",
+      "rol": "staff"
+    },
+    {
+      "id": "3",
+      "username": "cliente",
+      "password": "cliente123",
+      "nombre": "Joel Alexander",
+      "rol": "cliente"
+    }
+  ],
+  "socios": [
+    {
+      "id": "1",
+      "dni": "74125896",
+      "nombres": "Carlos Mendoza",
+      "telefono": "987654321",
+      "email": "carlos@test.com",
+      "activo": true
+    },
+    {
+      "id": "2",
+      "dni": "45896321",
+      "nombres": "Andrea Quispe",
+      "telefono": "912345678",
+      "email": "andrea@test.com",
+      "activo": true
+    },
+    {
+      "id": "3",
+      "dni": "78965412",
+      "nombres": "Renzo Salazar",
+      "telefono": "945612378",
+      "email": "renzo@test.com",
+      "activo": false
+    }
+  ],
+  "categorias": [
+    {
+      "id": "1",
+      "nombre": "Acceso Base"
+    },
+    {
+      "id": "2",
+      "nombre": "Amenities / Zona Húmeda"
+    },
+    {
+      "id": "3",
+      "nombre": "Entrenamiento & Clases"
+    },
+    {
+      "id": "4",
+      "nombre": "Servicios Adicionales"
+    }
+  ],
+  "productos": [
+    {
+      "id": "1",
+      "nombre": "Pase Libre Musculación",
+      "categoriaId": "1",
+      "precio": 90,
+      "activo": true
+    },
+    {
+      "id": "2",
+      "nombre": "Acceso a Sauna Húmedo y Seco",
+      "categoriaId": "2",
+      "precio": 35,
+      "activo": true
+    },
+    {
+      "id": "3",
+      "nombre": "Clases de Spinning & Crossfit",
+      "categoriaId": "3",
+      "precio": 45,
+      "activo": true
+    },
+    {
+      "id": "4",
+      "nombre": "Casillero Personal Exclusivo",
+      "categoriaId": "4",
+      "precio": 25,
+      "activo": true
+    },
+    {
+      "id": "5",
+      "nombre": "Evaluación Nutricional Mensual",
+      "categoriaId": "4",
+      "precio": 30,
+      "activo": false
+    },
+    {
+      "nombre": "Acceso a Pïscina",
+      "categoriaId": "2",
+      "precio": 100,
+      "activo": true,
+      "id": "5SpS62_SH_k"
+    }
+  ],
+  "membresias": [
+    {
+      "id": "101",
+      "socioId": "1",
+      "productoIds": [
+        "1",
+        "2",
+        "4"
+      ],
+      "total": 150,
+      "pases": 5,
+      "estado": "Activa"
+    }
+  ],
+  "asistencias": [
+    {
+      "id": "1",
+      "socioId": "1",
+      "sede": "Sede Central",
+      "hora": "08:30",
+      "fecha": "2026-09-28"
+    },
+    {
+      "id": "2",
+      "socioId": "2",
+      "sede": "Sede Central",
+      "hora": "09:15",
+      "fecha": "2026-09-28"
+    }
+  ],
+  "sedes": [
+    {
+      "id": "1",
+      "nombre": "Sede Miraflores (Principal)",
+      "direccion": "Av. José Larco 1045, Miraflores",
+      "horario": "Lun - Sáb: 5:30 am - 11:00 pm | Dom: 8:00 am - 4:00 pm",
+      "aforo": "Aforo Actual: 45%",
+      "servicios": [
+        "Musculación",
+        "Sauna Húmedo & Seco",
+        "Spinning"
+      ],
+      "imagen": "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "id": "2",
+      "nombre": "Sede San Isidro Financial",
+      "direccion": "Calle Las Begonias 441, San Isidro",
+      "horario": "Lun - Sáb: 6:00 am - 10:30 pm | Dom: 8:00 am - 2:00 pm",
+      "aforo": "Aforo Actual: 60%",
+      "servicios": [
+        "Área Funcional",
+        "Crossfit",
+        "Casilleros VIP"
+      ],
+      "imagen": "https://images.unsplash.com/photo-1593079831268-3381b0db4a77?auto=format&fit=crop&w=600&q=80"
+    }
+  ],
+  "tienda": [
+    {
+      "id": "1",
+      "nombre": "Shaker Pro PowerFit 700ml",
+      "categoria": "Accesorios",
+      "precio": 28,
+      "stock": "Disponible",
+      "imagen": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      "id": "2",
+      "nombre": "Creatina Creapure 300g",
+      "categoria": "Suplementos",
+      "precio": 110,
+      "stock": "Disponible",
+      "imagen": "https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      "id": "3",
+      "nombre": "Correas Straps de Levantamiento",
+      "categoria": "Accesorios",
+      "precio": 35,
+      "stock": "Disponible",
+      "imagen": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=400&q=80"
+    },
+    {
+      "id": "4",
+      "nombre": "Toalla Microfibra Gym Antimicrobiana",
+      "categoria": "Textil",
+      "precio": 22,
+      "stock": "Disponible",
+      "imagen": "https://images.unsplash.com/photo-1606902965551-dce093cda6e7?auto=format&fit=crop&w=600&q=80"
+    }
+  ]
+}
