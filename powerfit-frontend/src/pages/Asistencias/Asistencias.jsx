@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Asistencias.css';
+import { logInfo, logExito, logAlerta, logError } from '../../utils/logger'; 
 
 const API = 'http://localhost:3000';
 
@@ -46,8 +47,12 @@ export default function Asistencias() {
         setMembresias(m);
         setProductos(p);
         setAsistencias([...a].reverse()); // las más recientes primero
+        logInfo(`Se cargaron ${a.length} registros de asistencia`);
       })
-      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+       .catch(() => {                                                   
+        setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?');
+        logError('Fallo al cargar los datos de control de acceso');  
+      });   
   }, []);
 
   const getSocio = (id) => socios.find((s) => String(s.id) === String(id));
@@ -73,6 +78,7 @@ export default function Asistencias() {
         tipo: 'error',
         texto: `No se encontró socio registrado con el DNI ${dniLimpio}.`
       });
+      logAlerta(`Intento de ingreso con DNI no registrado: ${dniLimpio}`);
       return;
     }
 
@@ -81,6 +87,7 @@ export default function Asistencias() {
         tipo: 'error',
         texto: `Acceso denegado: El socio ${socio.nombres} está desactivado.`
       });
+      logAlerta(`Acceso denegado a "${socio.nombres}" por estar desactivado`);
       return;
     }
 
@@ -93,6 +100,7 @@ export default function Asistencias() {
         tipo: 'error',
         texto: `Acceso denegado: El socio ${socio.nombres} no tiene una membresía vigente.`
       });
+      logAlerta(`Acceso denegado a "${socio.nombres}" por no tener membresía vigente`); 
       return;
     }
 
@@ -117,9 +125,11 @@ export default function Asistencias() {
         tipo: 'success',
         texto: `¡Ingreso autorizado! Bienvenido/a ${socio.nombres} (${getPlan(membresiaVigente)}).`
       });
+      logExito(`Ingreso registrado: ${socio.nombres} a las ${hora}`);
       setDniInput('');
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo registrar el ingreso del DNI ${dniLimpio}`);
     }
   };
 
@@ -144,8 +154,10 @@ export default function Asistencias() {
       if (!res.ok) return setError('No se pudo actualizar la hora.');
 
       setAsistencias(asistencias.map((a) => (a.id === id ? { ...a, hora } : a)));
+      logExito(`Se corrigió la hora de la asistencia #${id} a ${hora}`);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo actualizar la hora de la asistencia #${id}`);
     }
   };
 
@@ -159,8 +171,10 @@ export default function Asistencias() {
       if (!res.ok) return setError('No se pudo eliminar el registro.');
 
       setAsistencias(asistencias.filter((a) => a.id !== id));
+       logExito(`Se eliminó el registro de asistencia #${id}`);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo eliminar el registro de asistencia #${id}`); 
     }
   };
 

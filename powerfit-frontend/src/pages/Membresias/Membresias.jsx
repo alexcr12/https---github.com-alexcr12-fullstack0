@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Membresias.css';
+import { logInfo, logExito, logError } from '../../utils/logger';
 
 const API = 'http://localhost:3000';
 
@@ -24,8 +25,12 @@ export default function Membresias() {
         setSocios(s);
         setProductos(p);
         setMembresias([...m].reverse()); // las más recientes primero
+           logInfo(`Se cargaron ${m.length} membresías registradas`);  
       })
-      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+      .catch(() => {                                                    
+        setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?');
+        logError('Fallo al cargar socios, productos o membresías');    
+      });      
   }, []);
 
   // Regla 2: Solo productos activos se pueden seleccionar
@@ -112,9 +117,11 @@ export default function Membresias() {
       const creada = await res.json();
       setMembresias([creada, ...membresias]);
       alert(`¡Membresía generada exitosamente para ${socioSeleccionado.nombres}!`);
+      logExito(`Nueva membresía #${creada.id} contratada por ${socioSeleccionado.nombres} (S/ ${totalPagar.toFixed(2)})`);
       setModoCrear(false);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo registrar la membresía para "${socioSeleccionado?.nombres ?? 'socio desconocido'}"`);
     }
   };
 
@@ -134,8 +141,10 @@ export default function Membresias() {
       setMembresias(
         membresias.map((m) => (m.id === id ? { ...m, estado: 'Cancelada' } : m))
       );
+      logExito(`Membresía #${id} fue cancelada`);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo cancelar la membresía #${id}`);
     }
   };
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Catalogo.css';
-
+import { logInfo, logExito, logError } from '../../utils/logger';
 const API = 'http://localhost:3000';
 
 export default function Catalogo() {
@@ -26,8 +26,12 @@ export default function Catalogo() {
       .then(([cats, prods]) => {
         setCategorias(cats);
         setProductos(prods);
+        logInfo(`Catálogo cargado: ${cats.length} categorías y ${prods.length} productos`);
       })
-      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+      .catch(() => {                                                 
+        setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?');
+        logError('Fallo al cargar el catálogo de categorías y productos'); 
+      });
   }, []);
 
   // Abrir el modal de producto con la primera categoría seleccionada
@@ -50,8 +54,10 @@ export default function Catalogo() {
       setProductos(
         productos.map((p) => (p.id === prod.id ? { ...p, activo: !p.activo } : p))
       );
+      logExito(`Producto "${prod.nombre}" fue ${prod.activo ? 'desactivado' : 'habilitado'}`);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo actualizar el estado del producto "${prod.nombre}"`);
     }
   };
 
@@ -76,9 +82,11 @@ export default function Catalogo() {
 
       const creado = await res.json();
       setProductos([...productos, creado]);
+      logExito(`Se registró un nuevo producto: "${creado.nombre}" (S/ ${creado.precio})`); 
       setModalProductoOpen(false);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError('No se pudo registrar el nuevo producto');
     }
   };
 
@@ -98,10 +106,12 @@ export default function Catalogo() {
 
       const creada = await res.json();
       setCategorias([...categorias, creada]);
+      logExito(`Se registró una nueva categoría: "${creada.nombre}"`);
       setFormCat({ nombre: '' });
       setModalCategoriaOpen(false);
     } catch {
       setError('No se pudo conectar con el servidor.');
+       logError('No se pudo registrar la nueva categoría');
     }
   };
 

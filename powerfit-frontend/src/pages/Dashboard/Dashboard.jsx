@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './Dashboard.css';
+import { logInfo, logError } from '../../utils/logger'; 
 
 const API = 'http://localhost:3000';
 
@@ -34,8 +35,10 @@ function Dashboard() {
         setSocios(s);
         setMembresias(m);
         setAsistencias(a);
+         logInfo(`Dashboard cargado: ${s.length} socios, ${m.length} membresías, ${a.length} asistencias`);
       } catch {
         setError('No se pudieron cargar los datos. ¿Está encendido el servidor?');
+        logError('No se pudieron cargar las métricas del dashboard');
       } finally {
         setLoading(false);
       }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-
+import { logExito, logError, logAlerta } from '../utils/logger';
 const AuthContext = createContext();
 
 const API = 'http://localhost:3000';
@@ -24,7 +24,8 @@ export function AuthProvider({ children }) {
       if (!res.ok) throw new Error('Error del servidor');
 
       const lista = await res.json();
-      if (lista.length === 0) {
+     if (lista.length === 0) {
+        logAlerta(`Intento de login fallido para el usuario "${username}"`); 
         return { success: false, message: 'Usuario o contraseña incorrectos' };
       }
 
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
       const { password: _, ...data } = lista[0];
       setUsuario(data);
       localStorage.setItem('powerfit_user', JSON.stringify(data));
+      logExito(`Usuario "${data.username}" inició sesión como ${data.rol}`);
       return { success: true, rol: data.rol, usuario: data };
     } catch {
       return { success: false, message: 'No se pudo conectar con el servidor' };

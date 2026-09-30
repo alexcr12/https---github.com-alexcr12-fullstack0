@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Socios.css';
+import { logInfo, logExito, logError } from '../../utils/logger';
 
 const API = 'http://localhost:3000';
 
@@ -14,8 +15,14 @@ export default function Socios() {
   useEffect(() => {
     fetch(`${API}/socios`)
       .then((res) => res.json())
-      .then(setSocios)
-      .catch(() => setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?'));
+      .then((data) => {                                              
+        setSocios(data);
+        logInfo(`Se cargaron ${data.length} socios desde el servidor`); 
+      })                                                             
+      .catch(() => {                                                  
+        setError('No se pudo conectar con el servidor. ¿Está corriendo npm run server?');
+        logError('Fallo al cargar la lista de socios');              
+      });
   }, []);
 
   // RF02: Búsqueda dinámica
@@ -34,8 +41,10 @@ export default function Socios() {
       });
       if (!res.ok) return setError('No se pudo actualizar el socio.');
       setSocios(socios.map((s) => (s.id === socio.id ? { ...s, activo: !s.activo } : s)));
+          logExito(`Socio "${socio.nombres}" fue ${socio.activo ? 'desactivado' : 'activado'}`);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError(`No se pudo actualizar el estado del socio "${socio.nombres}"`);
     }
   };
 
@@ -59,10 +68,12 @@ export default function Socios() {
 
       const creado = await res.json();
       setSocios([...socios, creado]);
+       logExito(`Se registró un nuevo socio: ${creado.nombres} (DNI ${creado.dni})`);
       setFormData({ dni: '', nombres: '', telefono: '', email: '' });
       setModalOpen(false);
     } catch {
       setError('No se pudo conectar con el servidor.');
+      logError('No se pudo registrar el nuevo socio');
     }
   };
 
